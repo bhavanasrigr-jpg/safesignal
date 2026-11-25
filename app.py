@@ -23,6 +23,7 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024
 app.config.update(
     SECRET_KEY=os.environ.get("SAFESIGNAL_SECRET_KEY") or secrets.token_hex(32),
+    READ_ONLY=os.environ.get("SAFESIGNAL_READ_ONLY", "").lower() in {"1", "true", "yes"},
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("SAFESIGNAL_COOKIE_SECURE") == "1",
@@ -283,6 +284,15 @@ def prepare_local_workspace():
         if request.path.startswith("/api/"):
             return jsonify({"error": message}), 503
         return message, 503
+    if (
+        app.config["READ_ONLY"]
+        and request.method in {"POST", "PUT", "PATCH", "DELETE"}
+        and request.path not in {"/api/assistant", "/api/translate"}
+    ):
+        message = "This public SafeSignal demo is read-only. Changes are disabled."
+        if request.path.startswith("/api/"):
+            return jsonify({"error": message}), 403
+        return message, 403
     if request.method in {"POST", "PUT", "PATCH", "DELETE"} and not csrf_token_is_valid():
         if request.path.startswith("/api/"):
             return jsonify({"error": "Your session expired. Reload and try again."}), 403
@@ -301,7 +311,7 @@ def add_security_headers(response):
 
 @app.context_processor
 def inject_csrf_token():
-    return {"csrf_token": session.get("csrf_token", "")}
+    return {"csrf_token": session.get("csrf_token", ""), "read_only": app.config["READ_ONLY"]}
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -686,6 +696,8 @@ def update_volunteer(volunteer_id):
 @app.route("/api/checklist", methods=["GET", "POST"])
 def checklist():
     if request.method == "GET":
+        if app.config["READ_ONLY"]:
+            return jsonify({"completed": {}})
         with connect_db() as db:
             rows = db.execute(
                 "SELECT item_key,completed FROM checklist WHERE user_id=?",
@@ -759,7 +771,7 @@ def assistant():
     language = data.get("language", "English")
     if len(message) < 2:
         return jsonify({"error": "Please enter a question."}), 400
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = None if app.config["READ_ONLY"] else os.environ.get("OPENAI_API_KEY")
     if api_key:
         endpoint = os.environ.get("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
         payload = {
@@ -819,7 +831,7 @@ def translate_text():
     if translated:
         return jsonify({"translation": translated, "mode": "curated demo phrase"})
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = None if app.config["READ_ONLY"] else os.environ.get("OPENAI_API_KEY")
     if not api_key:
         return jsonify({"error": "This phrase is not in the demo phrasebook. Configure an AI API to translate custom text."}), 422
     endpoint = os.environ.get("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")

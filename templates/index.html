@@ -24,14 +24,14 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body data-user-name="{{ current_user['name'] }}" data-user-role="{{ current_user['role'] }}">
+<body data-read-only="{{ 'true' if read_only else 'false' }}" data-user-name="{{ 'Public visitor' if read_only else current_user['name'] }}" data-user-role="{{ 'member' if read_only else current_user['role'] }}">
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#" data-view="dashboard" aria-label="SafeSignal home">
         <span class="brand-mark"><i class="fa-solid fa-satellite-dish"></i></span>
         <span class="brand-copy"><b>SafeSignal</b><small>COMMUNITY RESPONSE NETWORK</small></span>
       </a>
-      <div class="workspace-label">DEMO OPERATIONS AREA <span class="workspace-badge">DEMO</span></div>
+      <div class="workspace-label">{% if read_only %}PUBLIC READ-ONLY DEMO{% else %}DEMO OPERATIONS AREA{% endif %} <span class="workspace-badge">DEMO</span></div>
       <nav class="side-nav" aria-label="Main navigation">
         <button class="nav-link active" data-view="dashboard"><i class="fa-solid fa-grid-2"></i><span>Overview</span></button>
         <button class="nav-link" data-view="map"><i class="fa-solid fa-map-location-dot"></i><span>Intelligence map</span><em>REAL MAP</em></button>
@@ -49,11 +49,11 @@
         <button class="nav-link" data-view="preparedness"><i class="fa-solid fa-shield-heart"></i><span>Preparedness</span></button>
         <button class="nav-link" data-view="analytics"><i class="fa-solid fa-chart-line"></i><span>Risk analytics</span></button>
         <button class="nav-link" data-view="language"><i class="fa-solid fa-language"></i><span>Multilingual hub</span></button>
-        {% if current_user['role'] == 'admin' %}<button class="nav-link" data-view="admin"><i class="fa-solid fa-clipboard-check"></i><span>Verification desk</span></button>{% endif %}
+        {% if current_user['role'] == 'admin' and not read_only %}<button class="nav-link" data-view="admin"><i class="fa-solid fa-clipboard-check"></i><span>Verification desk</span></button>{% endif %}
       </nav>
       <div class="sidebar-bottom">
         <div class="offline-card"><span class="offline-icon"><i class="fa-solid fa-wifi"></i></span><div><b id="network-label">Checking connection</b><small id="network-sub">Offline mode ready</small></div><span class="network-indicator" id="network-indicator"></span></div>
-        <div class="user-chip"><span class="avatar">{{ current_user['name'][:1]|upper }}</span><span><b>{{ current_user['name'] }}</b><small>{{ current_user['role']|capitalize }} account</small></span></div>
+        <div class="user-chip"><span class="avatar">{{ ('P' if read_only else current_user['name'][:1])|upper }}</span><span><b>{{ 'Public visitor' if read_only else current_user['name'] }}</b><small>{{ 'Read-only demo' if read_only else current_user['role']|capitalize ~ ' account' }}</small></span></div>
       </div>
     </aside>
     <div class="mobile-scrim" id="mobile-scrim"></div>
@@ -65,15 +65,16 @@
           <span class="demo-badge"><span></span> SIMULATION MODE</span>
           <button class="icon-button language-toggle" id="language-button" title="Language and accessibility"><i class="fa-solid fa-language"></i><span>EN</span></button>
           <button class="icon-button" id="large-text-button" title="Toggle large text"><i class="fa-solid fa-text-height"></i></button>
-          <button class="topbar-avatar" title="{{ current_user['name'] }}">{{ current_user['name'][:1]|upper }}</button>
+          <button class="topbar-avatar" title="{{ 'Public visitor' if read_only else current_user['name'] }}">{{ 'P' if read_only else current_user['name'][:1]|upper }}</button>
         </div>
       </header>
       <div class="content">
+        {% if read_only %}<div class="privacy-note"><i class="fa-solid fa-eye"></i><span><b>Public read-only demo.</b> Records are illustrative and all changes are disabled. Do not rely on this prototype for emergency information.</span></div>{% endif %}
 
         <section class="view active" id="view-dashboard">
           <div class="hero-row">
             <div><div class="eyebrow"><span class="eyebrow-line"></span> SAFESIGNAL RESPONSE NETWORK</div><h1>Operations <span>overview</span></h1><p class="page-subtitle">Chennai demonstration workspace · records and alerts are labelled by source.</p></div>
-            <div class="dashboard-actions"><button class="primary-button flood-sim-button" id="start-flood-simulation"><i class="fa-solid fa-water"></i> Flood Simulation</button><button class="outline-button" id="reset-flood-simulation" hidden><i class="fa-solid fa-arrow-rotate-left"></i> Reset Simulation</button></div>
+            <div class="dashboard-actions" {% if read_only %}hidden{% endif %}><button class="primary-button flood-sim-button" id="start-flood-simulation"><i class="fa-solid fa-water"></i> Flood Simulation</button><button class="outline-button" id="reset-flood-simulation" hidden><i class="fa-solid fa-arrow-rotate-left"></i> Reset Simulation</button></div>
             <div class="hero-time"><span class="time-icon"><i class="fa-regular fa-clock"></i></span><span><b id="local-time">--:--</b><small>LOCAL DEMO TIME</small></span></div>
           </div>
           <div class="notice-banner"><span class="notice-icon"><i class="fa-solid fa-circle-info"></i></span><p><b>Demo workspace.</b> Sample alerts, inventory and locations are simulated. Community reports are user submissions and remain unverified until reviewed. No live authority feed is connected.</p><button class="notice-close" aria-label="Dismiss notice"><i class="fa-solid fa-xmark"></i></button></div>
@@ -105,7 +106,7 @@
           </section>
           <div class="dashboard-grid">
             <article class="panel trend-panel"><div class="panel-heading"><div><h3>Incident activity</h3><p>Community submissions recorded in this demo</p></div><span class="mini-tag">DATABASE-BACKED</span></div><div class="chart-wrap chart-trend"><canvas id="dashboard-chart" aria-label="Community report activity chart"></canvas></div><div class="chart-legend"><span><i class="legend-dot blue"></i>Community reports</span><span class="legend-note">No predictive data</span></div></article>
-            <article class="panel quick-panel"><div class="panel-heading"><div><h3>Quick actions</h3><p>Take a useful next step</p></div><i class="fa-solid fa-bolt quick-bolt"></i></div><div class="quick-actions"><button class="quick-action" data-view="reports"><span class="qa-icon qa-coral"><i class="fa-solid fa-plus"></i></span><span><b>Submit a report</b><small>Share an observation</small></span><i class="fa-solid fa-chevron-right"></i></button><button class="quick-action" data-view="preparedness"><span class="qa-icon qa-cyan"><i class="fa-solid fa-list-check"></i></span><span><b>Build your kit</b><small>Prepare your household</small></span><i class="fa-solid fa-chevron-right"></i></button><button class="quick-action" data-view="resources"><span class="qa-icon qa-mint"><i class="fa-solid fa-boxes-stacked"></i></span><span><b>Check supplies</b><small>Review local inventory</small></span><i class="fa-solid fa-chevron-right"></i></button></div></article>
+            <article class="panel quick-panel"><div class="panel-heading"><div><h3>Quick actions</h3><p>Take a useful next step</p></div><i class="fa-solid fa-bolt quick-bolt"></i></div><div class="quick-actions">{% if not read_only %}<button class="quick-action" data-view="reports"><span class="qa-icon qa-coral"><i class="fa-solid fa-plus"></i></span><span><b>Submit a report</b><small>Share an observation</small></span><i class="fa-solid fa-chevron-right"></i></button>{% endif %}<button class="quick-action" data-view="preparedness"><span class="qa-icon qa-cyan"><i class="fa-solid fa-list-check"></i></span><span><b>Build your kit</b><small>Prepare your household</small></span><i class="fa-solid fa-chevron-right"></i></button><button class="quick-action" data-view="resources"><span class="qa-icon qa-mint"><i class="fa-solid fa-boxes-stacked"></i></span><span><b>Check supplies</b><small>Review local inventory</small></span><i class="fa-solid fa-chevron-right"></i></button></div></article>
           </div>
           <article class="panel recent-reports-panel"><div class="panel-heading"><div><h3>Recent community reports</h3><p>Latest submissions · not automatically verified</p></div><button class="text-button" data-view="reports">Open reports <i class="fa-solid fa-arrow-right"></i></button></div><div id="dashboard-reports" class="report-list compact-report-list"></div></article>
         </section>
@@ -126,10 +127,10 @@
         </section>
 
         <section class="view" id="view-reports">
-          <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> COMMUNITY SIGNALS</div><h1>Community <span>reports</span></h1><p class="page-subtitle">Share an observation. Submissions remain unverified until reviewed.</p></div><button class="primary-button" id="new-report-button"><i class="fa-solid fa-plus"></i> New report</button></div>
+          <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> COMMUNITY SIGNALS</div><h1>Community <span>reports</span></h1><p class="page-subtitle">{% if read_only %}Browse sample reports. This public showcase does not accept submissions.{% else %}Share an observation. Submissions remain unverified until reviewed.{% endif %}</p></div><button class="primary-button" id="new-report-button" {% if read_only %}hidden{% endif %}><i class="fa-solid fa-plus"></i> New report</button></div>
           {{ satellite_context() }}
-          <div class="privacy-note"><i class="fa-solid fa-shield-halved"></i><span><b>Privacy & verification:</b> Avoid including sensitive personal information. Reports are stored in this local demo and are not sent to authorities.</span></div>
-          <div class="report-layout"><div class="panel report-form-panel" id="report-form-panel"><div class="panel-heading"><div><h3>Submit a community report</h3><p>Help create a clearer picture of local needs</p></div><span class="step-number">01</span></div>
+          <div class="privacy-note"><i class="fa-solid fa-shield-halved"></i><span><b>Privacy & verification:</b> {% if read_only %}The hosted demo displays sample records only. Submissions are disabled.{% else %}Avoid including sensitive personal information. Reports are stored in this local demo and are not sent to authorities.{% endif %}</span></div>
+          <div class="report-layout"><div class="panel report-form-panel" id="report-form-panel" {% if read_only %}hidden{% endif %}><div class="panel-heading"><div><h3>Submit a community report</h3><p>Help create a clearer picture of local needs</p></div><span class="step-number">01</span></div>
             <form id="report-form">
               <div class="form-grid"><label class="form-field"><span>Incident type <b>*</b></span><select name="incident_type" required><option value="">Select a category</option><option>Flooding</option><option>Road blockage</option><option>Fallen trees</option><option>Infrastructure damage</option><option>Fire incident</option><option>Power outage</option><option>Medical assistance</option><option>Water shortage</option><option>Food shortage</option><option>Other emergency</option></select></label>
               <label class="form-field"><span>Severity assessment <b>*</b></span><select name="severity" required><option>INFORMATION</option><option selected>WATCH</option><option>WARNING</option><option>CRITICAL</option></select></label>
@@ -141,7 +142,7 @@
               <div class="form-actions"><span class="required-note">* Required fields</span><button type="submit" class="primary-button" id="report-submit"><i class="fa-solid fa-paper-plane"></i> Submit report</button></div>
             </form>
           </div>
-          <div class="panel report-history-panel"><div class="panel-heading"><div><h3>Report history</h3><p>Submissions stored in this browser's app database</p></div><button class="icon-button small" id="refresh-reports" aria-label="Refresh reports"><i class="fa-solid fa-rotate"></i></button></div><div class="filter-row"><select id="report-status-filter" class="select-control"><option>All statuses</option><option>Submitted</option><option>Under Review</option><option>Verified</option><option>Resolved</option><option>Rejected</option></select><select id="report-category-filter" class="select-control"><option>All categories</option><option>Flooding</option><option>Road blockage</option><option>Fallen trees</option><option>Infrastructure damage</option><option>Fire incident</option><option>Power outage</option><option>Medical assistance</option><option>Water shortage</option><option>Food shortage</option><option>Other emergency</option></select></div><div id="report-history" class="report-list"></div></div></div>
+          <div class="panel report-history-panel"><div class="panel-heading"><div><h3>Report history</h3><p>{% if read_only %}Sample reports shown for demonstration only{% else %}Submissions stored in this browser's app database{% endif %}</p></div><button class="icon-button small" id="refresh-reports" aria-label="Refresh reports"><i class="fa-solid fa-rotate"></i></button></div><div class="filter-row"><select id="report-status-filter" class="select-control"><option>All statuses</option><option>Submitted</option><option>Under Review</option><option>Verified</option><option>Resolved</option><option>Rejected</option></select><select id="report-category-filter" class="select-control"><option>All categories</option><option>Flooding</option><option>Road blockage</option><option>Fallen trees</option><option>Infrastructure damage</option><option>Fire incident</option><option>Power outage</option><option>Medical assistance</option><option>Water shortage</option><option>Food shortage</option><option>Other emergency</option></select></div><div id="report-history" class="report-list"></div></div></div>
         </section>
 
         <section class="view" id="view-assistant">
@@ -151,14 +152,14 @@
         </section>
 
         <section class="view" id="view-resources">
-          <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> RELIEF OPERATIONS</div><h1>Resource <span>management</span></h1><p class="page-subtitle">Track locally entered inventory. Sample quantities are illustrative, not verified stock.</p></div>{% if current_user['role'] == 'admin' %}<button class="primary-button" id="add-resource-button"><i class="fa-solid fa-plus"></i> Add resource</button>{% endif %}</div>
+          <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> RELIEF OPERATIONS</div><h1>Resource <span>management</span></h1><p class="page-subtitle">Track locally entered inventory. Sample quantities are illustrative, not verified stock.</p></div>{% if current_user['role'] == 'admin' and not read_only %}<button class="primary-button" id="add-resource-button"><i class="fa-solid fa-plus"></i> Add resource</button>{% endif %}</div>
           {{ satellite_context() }}
           <div class="resource-summary" id="resource-summary"></div><div class="filter-toolbar panel"><label class="search-field"><i class="fa-solid fa-magnifying-glass"></i><input id="resource-search" placeholder="Search name, category or area…"></label><select id="resource-status-filter" class="select-control"><option value="">All supply statuses</option><option value="Available">Available</option><option value="Low stock">Low stock</option><option value="Critical shortage">Critical shortage</option></select><span class="results-count" id="resource-count"></span></div>
           <div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>RESOURCE</th><th>CATEGORY</th><th>QUANTITY</th><th>AREA</th><th>SUPPLY STATUS</th><th>LAST UPDATED</th><th></th></tr></thead><tbody id="resource-table"></tbody></table></div><div class="table-note"><i class="fa-solid fa-circle-info"></i> Inventory must be independently confirmed before operational use.</div></div>
         </section>
 
         <section class="view" id="view-volunteers">
-          <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> COMMUNITY COORDINATION</div><h1>Volunteer <span>network</span></h1><p class="page-subtitle">Coordinate safe, non-hazardous community support activities.</p></div><button class="primary-button" id="register-volunteer-button"><i class="fa-solid fa-user-plus"></i> Register volunteer</button></div>
+          <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> COMMUNITY COORDINATION</div><h1>Volunteer <span>network</span></h1><p class="page-subtitle">Coordinate safe, non-hazardous community support activities.</p></div><button class="primary-button" id="register-volunteer-button" {% if read_only %}hidden{% endif %}><i class="fa-solid fa-user-plus"></i> Register volunteer</button></div>
           {{ satellite_context() }}
           <div class="safety-banner"><i class="fa-solid fa-triangle-exclamation"></i><span><b>Volunteer safety comes first.</b> This platform does not qualify or dispatch responders. Never enter hazardous areas; follow official instructions and only take on activities you are trained and authorized to perform.</span></div>
           <div class="metric-grid compact-metrics" id="volunteer-summary"></div><div class="panel"><div class="panel-heading"><div><h3>Volunteer directory</h3><p>Demo entries and community registrations</p></div><label class="search-field compact-search"><i class="fa-solid fa-magnifying-glass"></i><input id="volunteer-search" placeholder="Search volunteers…"></label></div><div class="volunteer-grid" id="volunteer-grid"></div></div>
@@ -195,7 +196,7 @@
           <div class="language-grid"><article class="panel translation-panel"><div class="panel-heading"><div><h3>Message translator</h3><p>Custom text is sent only to the API configured by the operator. Without one, curated phrases work offline.</p></div></div><label class="form-field"><span>Message to translate</span><textarea id="translation-input" rows="5" maxlength="1000" placeholder="Paste an alert or short emergency message"></textarea></label><div class="translation-controls"><span class="form-field"><span>Translate to</span><select id="translation-language" class="select-control"><option>Tamil</option><option>Hindi</option><option>English</option></select></span><button class="primary-button" id="translate-button"><i class="fa-solid fa-language"></i> Translate</button></div><div class="translation-output" id="translation-output"><span class="empty-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></span><b>Your translation will appear here</b><p>Never rely on automated translation alone during emergencies.</p></div></article><aside class="panel language-info"><span class="info-orbit"><i class="fa-solid fa-universal-access"></i></span><h3>Clear information<br><span>for every neighbour.</span></h3><p>Use the controls above for larger type and stronger contrast. Short explanations clarify how this prototype handles information.</p><div class="plain-language-card"><b>What is an alert?</b><p>An alert is an advisory from an issuing source. Check who issued it, where it applies, and when it expires.</p></div><div class="plain-language-card"><b>What is a community report?</b><p>A report is shared by a community member. It is not confirmed until a reviewer checks it.</p></div><div class="plain-language-card"><b>What does this demo show?</b><p>Sample alerts and locations are simulated. They are not live emergency information.</p></div></aside></div>
         </section>
 
-        <section class="view" id="view-admin">
+        <section class="view" id="view-admin" {% if read_only %}hidden{% endif %}>
           <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> TRUST & ACCOUNTABILITY</div><h1>Verification <span>desk</span></h1><p class="page-subtitle">Review user-submitted reports and update their workflow status.</p></div><span class="demo-badge"><span></span> LOCAL DEMO ADMIN</span></div>
           {{ satellite_context() }}
           <div class="admin-warning"><i class="fa-solid fa-lock"></i><span><b>Administrator access:</b> The first registered account is the administrator; later accounts are members. This local demo does not include multi-factor authentication or account recovery.</span></div>

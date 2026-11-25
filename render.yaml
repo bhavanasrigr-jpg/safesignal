@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: safesignal-public-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/overview
+    envVars:
+      - key: SAFESIGNAL_READ_ONLY
+        value: "1"
+      - key: SAFESIGNAL_SECRET_KEY
+        generateValue: true

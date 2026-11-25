@@ -3,7 +3,8 @@
   "use strict";
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
-  const isAdmin = document.body.dataset.userRole === "admin";
+  const isReadOnly = document.body.dataset.readOnly === "true";
+  const isAdmin = !isReadOnly && document.body.dataset.userRole === "admin";
   const state = { overview: null, alerts: [], reports: [], resources: [], volunteers: [], guides: {}, mapPoints: [], floodZones: [], floodSimulation: null, activeGuide: "Floods", charts: {}, map: null, previewMap: null, baseLayer: null, previewBaseLayer: null, baseStyle: "satellite", markerLayers: {}, mapReady: false };
   const layerTypes = ["Flood reports", "Cyclone information", "Fire reports", "Landslide reports", "Earthquake information", "Relief camps", "Hospitals", "Community reports", "Road closure reports"];
   const layerIcons = ["fa-water", "fa-wind", "fa-fire", "fa-mountain-sun", "fa-house-crack", "fa-tent", "fa-house-medical", "fa-bullhorn", "fa-road"];
@@ -391,7 +392,9 @@
     try {
       const [guideResponse, checklistResponse] = await Promise.all([
         api("/api/preparedness"),
-        api("/api/checklist").catch(() => ({ completed: JSON.parse(localStorage.getItem("safesignal-checklist") || "{}") })),
+        isReadOnly
+          ? Promise.resolve({ completed: JSON.parse(localStorage.getItem("safesignal-checklist") || "{}") })
+          : api("/api/checklist").catch(() => ({ completed: JSON.parse(localStorage.getItem("safesignal-checklist") || "{}") })),
       ]);
       state.guides = guideResponse.guides || {};
       state.checklist = checklistResponse.completed || {};
@@ -425,7 +428,7 @@
     state.checklist[key] = input.checked;
     localStorage.setItem("safesignal-checklist", JSON.stringify(state.checklist));
     updatePrepProgress();
-    if (navigator.onLine) {
+    if (!isReadOnly && navigator.onLine) {
       try { await api("/api/checklist", { method: "POST", body: JSON.stringify({ item_key: key, completed: input.checked }) }); }
       catch (_) { /* local copy remains available if the network is interrupted */ }
     }
